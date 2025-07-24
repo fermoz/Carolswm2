@@ -4,11 +4,10 @@ from datetime import datetime
 import os
 
 
-st.write("Archivo guardado en:", os.path.abspath(DATA_FILE))
 
 # ---------- Configuración ----------
 DATA_FILE = "peso.csv"
-
+st.write("Archivo guardado en:", os.path.abspath(DATA_FILE))
 # ---------- Cargar datos ----------
 def cargar_datos():
     if os.path.exists(DATA_FILE):
