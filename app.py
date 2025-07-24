@@ -1,71 +1,72 @@
+# Requiere: streamlit, supabase, pandas, python-dotenv
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta, timezone, date
-from supabase import create_client
+from datetime import datetime, timedelta, timezone
+from supabase import create_client, Client
+import os
 
-# Conexión a Supabase
+# --------------------
+# Configuración
+# --------------------
+st.set_page_config(page_title="Carol's Curve")
+
+# Cargar claves desde secrets.toml o entorno
 url = st.secrets["SUPABASE_URL"]
 key = st.secrets["SUPABASE_KEY"]
-supabase = create_client(url, key)
+supabase: Client = create_client(url, key)
 
-st.set_page_config(page_title="Registro de Peso", layout="centered")
-st.title("📈 Carols curve")
-
-# Funciones auxiliares
+# --------------------
+# Guardar peso actual
+# --------------------
 def guardar_peso(peso):
-    try:
-        supabase.table("peso").insert({"peso": peso, "created_at": datetime.now(timezone.utc).isoformat()}).execute()
-        return True
-    except Exception as e:
-        st.error(f"❌ Error al guardar: {e}")
-        return False
+    data = {"peso": peso}
+    response = supabase.table("peso").insert(data).execute()
+    if hasattr(response, "error") and response.error:
+        st.error(f"❌ Error al guardar: {response.error}")
 
-def cargar_pesos():
-    try:
-        data = supabase.table("peso").select("*").order("created_at", desc=True).execute().data
-        df = pd.DataFrame(data)
-        if not df.empty:
-            df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize("UTC")
-        return df
-    except Exception as e:
-        st.error(f"❌ Error al cargar datos: {e}")
-        return pd.DataFrame()
+# ------------------------
+# Leer historial de pesos
+# ------------------------
+def leer_pesos():
+    response = supabase.table("peso").select("*").order("created_at", desc=False).execute()
+    df = pd.DataFrame(response.data)
+    if not df.empty:
+        df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize("UTC")
+    return df
 
-def borrar_todos_los_registros():
-    supabase.table("peso").delete().neq("id", 0).execute()
-
+# ------------------------
+# Guardar objetivo
+# ------------------------
 def guardar_objetivo(peso_objetivo, fecha_objetivo):
-    try:
-        supabase.table("objetivo").insert({
-            "peso_objetivo": peso_objetivo,
-            "fecha_objetivo": fecha_objetivo.isoformat()
-        }).execute()
-        st.success("🎯 Objetivo guardado correctamente")
-    except Exception as e:
-        st.error(f"❌ Error al guardar el objetivo: {e}")
+    supabase.table("objetivo").insert({
+        "peso_objetivo": peso_objetivo,
+        "fecha_objetivo": fecha_objetivo.isoformat()
+    }).execute()
 
+# ------------------------
+# Leer último objetivo
+# ------------------------
 def leer_ultimo_objetivo():
-    try:
-        response = supabase.table("objetivo").select("*").order("created_at", desc=True).limit(1).execute()
-        data = response.data
-        if data:
-            return data[0]
-        return None
-    except Exception as e:
-        st.error(f"❌ Error al leer objetivo: {e}")
-        return None
+    response = supabase.table("objetivo").select("*").order("created_at", desc=True).limit(1).execute()
+    data = response.data
+    return data[0] if data else None
 
-# Menú
-opcion = st.sidebar.radio("Selecciona una opción", ("Registrar peso", "Borrar registros", "Actualizar objetivo"))
+# --------------------
+# Interfaz Streamlit
+# --------------------
+st.title("💪 Carol's Curve")
+menu = st.sidebar.radio("Menú", ("Registrar peso", "Actualizar objetivo", "Borrar registros"))
 
-if opcion == "Registrar peso":
-    st.subheader("📥 Registrar nuevo peso")
-    df = cargar_pesos()
-
+# ====================
+# Registrar peso
+# ====================
+if menu == "Registrar peso":
+    df = leer_pesos()
     objetivo = leer_ultimo_objetivo()
+
     if objetivo:
         peso_obj = objetivo["peso_objetivo"]
-        fecha_obj = pd.to_datetime(objetivo["fecha_objetivo"])
+        fecha_obj = pd.to_datetime(objetivo["fecha_objetivo"]).tz_localize("UTC")
         dias_restantes = (fecha_obj - datetime.now(timezone.utc)).days
         peso_actual = df["peso"].iloc[-1] if not df.empty else None
 
@@ -73,48 +74,55 @@ if opcion == "Registrar peso":
         #### 🎯 Objetivo actual
         - **Peso objetivo:** {peso_obj:.1f} kg  
         - **Fecha límite:** {fecha_obj.strftime("%d/%m/%Y")}  
-        - **Días restantes:** {dias_restantes} días  
+        - **Días restantes:** {dias_restantes} días
         """)
 
-        if peso_actual:
+        if peso_actual is not None:
             diferencia = peso_actual - peso_obj
             st.markdown(f"- **Diferencia de peso actual:** {diferencia:+.1f} kg")
-
             if datetime.now(timezone.utc) > fecha_obj:
                 if diferencia > 0:
                     st.warning("⚠️ No ha alcanzado el objetivo, establezca un nuevo objetivo.")
             elif diferencia <= 0:
-                dias_anticipacion = abs(dias_restantes)
-                st.success(f"🎉 ¡Enhorabuena! Has alcanzado el objetivo {dias_anticipacion} días antes.")
+                st.success(f"🎉 ¡Enhorabuena! Has alcanzado el objetivo {abs(dias_restantes)} días antes.")
 
-    peso_input = st.number_input("Introduce tu peso (kg)", min_value=30.0, max_value=200.0, step=0.1, key="peso")
-
+    peso = st.number_input("Introduce tu peso actual (kg)", min_value=30.0, max_value=200.0, step=0.1, format="%.1f")
     if st.button("Guardar peso"):
-        st.session_state.confirmar = True
-        st.session_state.peso_temp = peso_input
+        confirmar = st.radio(f"¿Es correcto el peso {peso:.1f} kg?", ("Sí", "No"))
+        if confirmar == "Sí":
+            guardar_peso(peso)
+        else:
+            st.info("Vuelve a introducir tu peso si te has equivocado")
 
-    if st.session_state.get("confirmar"):
-        st.write(f"¿Es correcto el peso {st.session_state.peso_temp:.1f} kg?")
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("✅ Confirmar"):
-                if guardar_peso(st.session_state.peso_temp):
-                    st.success("Peso guardado correctamente")
-                    st.session_state.confirmar = False
-        with col2:
-            if st.button("❌ Cancelar"):
-                st.session_state.confirmar = False
+    # Mostrar histórico
+    df = leer_pesos()
+    if not df.empty:
+        st.subheader("Historial de peso")
+        st.dataframe(df[["created_at", "peso"]].tail(5), use_container_width=True)
+        if len(df) >= 2:
+            diff = df.iloc[-1]["peso"] - df.iloc[-2]["peso"]
+            st.write(f"📉 Diferencia con la última medición: {diff:.1f} kg")
+        ultimos_30 = df[df["created_at"] > datetime.now(timezone.utc) - timedelta(days=30)]
+        if not ultimos_30.empty:
+            media30 = ultimos_30["peso"].mean()
+            st.write(f"📊 Media últimos 30 días: {media30:.1f} kg")
 
-elif opcion == "Borrar registros":
-    st.subheader("🗑️ Borrar todos los registros")
-    if st.button("Eliminar todos los pesos registrados"):
-        borrar_todos_los_registros()
-        st.success("Todos los registros han sido eliminados")
-
-elif opcion == "Actualizar objetivo":
+# ====================
+# Actualizar objetivo
+# ====================
+elif menu == "Actualizar objetivo":
     st.subheader("🎯 Establecer nuevo objetivo")
-    nuevo_peso = st.number_input("Introduce el peso objetivo (kg)", min_value=30.0, max_value=200.0, step=0.1)
+    nuevo_peso = st.number_input("Peso objetivo (kg)", min_value=30.0, max_value=200.0, step=0.1)
     nueva_fecha = st.date_input("Fecha para alcanzar el objetivo")
+    if st.button("Guardar nuevo objetivo"):
+        guardar_objetivo(nuevo_peso, datetime.combine(nueva_fecha, datetime.min.time(), tzinfo=timezone.utc))
+        st.success("✅ Objetivo guardado correctamente")
+
+# ====================
+# Borrar registros
+# ====================
+elif menu == "Borrar registros":
+    st.warning("Función no implementada todavía. ¿Quieres que la añada?")
     if st.button("Guardar nuevo objetivo"):
         guardar_objetivo(nuevo_peso, datetime.combine(nueva_fecha, datetime.min.time(), tzinfo=timezone.utc))
 
