@@ -14,15 +14,14 @@ supabase = create_client(url, key)
 # Guardar nuevo peso
 # ------------------------
 def guardar_peso(peso):
-    now = datetime.now().isoformat()
-    data = {"fecha_hora": now, "peso": peso}
+    data = {"peso": peso}
     supabase.table("peso").insert(data).execute()
 
 # ------------------------
 # Leer datos de la tabla
 # ------------------------
 def leer_pesos():
-    response = supabase.table("peso").select("*").order("fecha_hora", desc=True).limit(100).execute()
+    response = supabase.table("peso").select("*").order("created_at", desc=True).limit(100).execute()
     return pd.DataFrame(response.data)
 
 # ------------------------
@@ -54,8 +53,8 @@ if st.button("Guardar peso"):
 # ------------------------
 df = leer_pesos()
 if not df.empty:
-    df["fecha_hora"] = pd.to_datetime(df["fecha_hora"])
-    df = df.sort_values("fecha_hora")
+    df["created_at"] = pd.to_datetime(df["created_at"])
+    df = df.sort_values("created_at")
     st.subheader("Historial de peso")
     st.dataframe(df.tail(5), use_container_width=True)
 
@@ -63,7 +62,7 @@ if not df.empty:
         diff = df.iloc[-1]["peso"] - df.iloc[-2]["peso"]
         st.write(f"📉 Diferencia con la última medición: {diff:.1f} kg")
 
-    ultimos_30 = df[df["fecha_hora"] > datetime.now() - timedelta(days=30)]
+    ultimos_30 = df[df["created_at"] > datetime.now() - timedelta(days=30)]
     if not ultimos_30.empty:
         media30 = ultimos_30["peso"].mean()
         delta = df.iloc[-1]["peso"] - media30
