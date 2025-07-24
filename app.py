@@ -28,6 +28,7 @@ def guardar_peso(peso):
 # ------------------------
 def leer_pesos():
     response = supabase.table("peso").select("*").order("created_at", desc=True).limit(100).execute()
+    df["created_at"] = pd.to_datetime(df["created_at"])
     return pd.DataFrame(response.data)
 
 # ------------------------
@@ -67,7 +68,8 @@ if not df.empty:
     if len(df) >= 2:
         diff = df.iloc[-1]["peso"] - df.iloc[-2]["peso"]
         st.write(f"📉 Diferencia con la última medición: {diff:.1f} kg")
-
+    
+    df["created_at"] = pd.to_datetime(df["created_at"])
     ultimos_30 = df[df["created_at"] > datetime.now() - timedelta(days=30)]
     if not ultimos_30.empty:
         media30 = ultimos_30["peso"].mean()
