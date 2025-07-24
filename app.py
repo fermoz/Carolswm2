@@ -60,20 +60,28 @@ menu = st.sidebar.radio("Menú", ("Registrar peso", "Actualizar objetivo", "Borr
 # ------------------------
 # Registro de peso
 # ------------------------
+# Inicializar estado si no existe
 if "mostrar_confirmacion" not in st.session_state:
     st.session_state["mostrar_confirmacion"] = False
+if "peso_temporal" not in st.session_state:
+    st.session_state["peso_temporal"] = None
+
+# ------------------------
+# Registro de peso
+# ------------------------
 
 elif menu == "📥 Registrar peso":
     st.subheader("Registrar nuevo peso")
-    
-    # Paso 1: ingreso del peso
-    nuevo_peso = st.number_input("Introduce tu peso en kg", min_value=30.0, max_value=200.0, step=0.1, key="input_peso")
-    if st.button("Guardar peso"):
-        st.session_state["peso_temporal"] = nuevo_peso
-        st.session_state["mostrar_confirmacion"] = True
 
-    # Paso 2: confirmación
-    if st.session_state.get("mostrar_confirmacion", False):
+    # Solo mostramos el input si no estamos confirmando
+    if not st.session_state["mostrar_confirmacion"]:
+        nuevo_peso = st.number_input("Introduce tu peso en kg", min_value=30.0, max_value=200.0, step=0.1)
+        if st.button("Guardar peso"):
+            st.session_state["peso_temporal"] = nuevo_peso
+            st.session_state["mostrar_confirmacion"] = True
+
+    # Confirmación del peso
+    if st.session_state["mostrar_confirmacion"]:
         peso_confirmar = st.session_state["peso_temporal"]
         st.info(f"¿Es correcto el peso {peso_confirmar:.1f} kg?")
         col1, col2 = st.columns(2)
@@ -82,9 +90,12 @@ elif menu == "📥 Registrar peso":
                 guardar_peso(peso_confirmar)
                 st.success("Peso guardado correctamente.")
                 st.session_state["mostrar_confirmacion"] = False
+                st.session_state["peso_temporal"] = None
+                st.experimental_rerun()  # Refresca la app para que aparezca el historial actualizado
         with col2:
             if st.button("❌ No, volver"):
                 st.session_state["mostrar_confirmacion"] = False
+                st.session_state["peso_temporal"] = None
 
 
 # ====================
