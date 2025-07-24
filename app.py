@@ -66,7 +66,10 @@ if menu == "Registrar peso":
 
     if objetivo:
         peso_obj = objetivo["peso_objetivo"]
-        fecha_obj = pd.to_datetime(objetivo["fecha_objetivo"]).tz_localize("UTC")
+        fecha_obj = pd.to_datetime(objetivo["fecha_objetivo"])
+        if fecha_obj.tzinfo is None:
+           fecha_obj = fecha_obj.tz_localize("UTC")
+
         dias_restantes = (fecha_obj - datetime.now(timezone.utc)).days
         peso_actual = df["peso"].iloc[-1] if not df.empty else None
 
