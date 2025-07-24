@@ -37,7 +37,7 @@ def guardar_objetivo(peso_objetivo, fecha_objetivo):
     data = {
         "id": str(uuid.uuid4()),
         "peso_objetivo": peso_objetivo,
-        "fecha_objetivo": fecha_objetivo
+        "fecha_objetivo": fecha_objetivo.isoformat()
     }
     supabase.table("objetivo").insert(data).execute()
 
