@@ -15,12 +15,11 @@ supabase = create_client(url, key)
 # ------------------------
 def guardar_peso(peso):
     data = {"peso": float(peso)}
-    response = supabase.table("peso").insert(data).execute()
-
-    # Debug completo:
-    st.write("DEBUG RESPONSE:", response)
-    if response.error:
-        st.error(f"❌ Error Supabase: {response.error}")
+    try:
+        response = supabase.table("peso").insert(data).execute()
+        st.success("✅ Peso guardado en Supabase.")
+    except Exception as e:
+        st.error(f"❌ Error al guardar: {e}")
 
 
 
