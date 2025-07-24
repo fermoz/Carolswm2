@@ -3,6 +3,9 @@ import pandas as pd
 from datetime import datetime
 import os
 
+
+st.write("Archivo guardado en:", os.path.abspath(DATA_FILE))
+
 # ---------- Configuración ----------
 DATA_FILE = "peso.csv"
 
