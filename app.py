@@ -14,8 +14,11 @@ supabase = create_client(url, key)
 # Guardar nuevo peso
 # ------------------------
 def guardar_peso(peso):
-    data = {"peso": peso}
-    supabase.table("peso").insert(data).execute()
+    data = {"peso": float(peso)}  # No pongas "id", ni "created_at"
+    response = supabase.table("peso").insert(data).execute()
+    if response.error:
+        st.error(f"❌ Error al guardar: {response.error}")
+
 
 # ------------------------
 # Leer datos de la tabla
