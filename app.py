@@ -25,7 +25,7 @@ def cargar_pesos():
         data = supabase.table("peso").select("*").order("created_at", desc=True).execute().data
         df = pd.DataFrame(data)
         if not df.empty:
-            df["created_at"] = pd.to_datetime(df["created_at"])
+            df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize("UTC")
         return df
     except Exception as e:
         st.error(f"❌ Error al cargar datos: {e}")
