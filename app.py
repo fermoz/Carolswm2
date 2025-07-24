@@ -57,58 +57,35 @@ def leer_ultimo_objetivo():
 st.title("💪 Carol's Curve")
 menu = st.sidebar.radio("Menú", ("Registrar peso", "Actualizar objetivo", "Borrar registros"))
 
-# ====================
-# Registrar peso
-# ====================
-if menu == "Registrar peso":
-    df = leer_pesos()
-    objetivo = leer_ultimo_objetivo()
+# ------------------------
+# Registro de peso
+# ------------------------
+if "mostrar_confirmacion" not in st.session_state:
+    st.session_state["mostrar_confirmacion"] = False
 
-    if objetivo:
-        peso_obj = objetivo["peso_objetivo"]
-        fecha_obj = pd.to_datetime(objetivo["fecha_objetivo"])
-        if fecha_obj.tzinfo is None:
-           fecha_obj = fecha_obj.tz_localize("UTC")
-
-        dias_restantes = (fecha_obj - datetime.now(timezone.utc)).days
-        peso_actual = df["peso"].iloc[-1] if not df.empty else None
-
-        st.markdown(f"""
-        #### 🎯 Objetivo actual
-        - **Peso objetivo:** {peso_obj:.1f} kg  
-        - **Fecha límite:** {fecha_obj.strftime("%d/%m/%Y")}  
-        - **Días restantes:** {dias_restantes} días
-        """)
-
-        if peso_actual is not None:
-            diferencia = peso_actual - peso_obj
-            st.markdown(f"- **Diferencia de peso actual:** {diferencia:+.1f} kg")
-            if datetime.now(timezone.utc) > fecha_obj:
-                if diferencia > 0:
-                    st.warning("⚠️ No ha alcanzado el objetivo, establezca un nuevo objetivo.")
-            elif diferencia <= 0:
-                st.success(f"🎉 ¡Enhorabuena! Has alcanzado el objetivo {abs(dias_restantes)} días antes.")
-
-    peso = st.number_input("Introduce tu peso actual (kg)", min_value=30.0, max_value=200.0, step=0.1, format="%.1f")
+elif menu == "📥 Registrar peso":
+    st.subheader("Registrar nuevo peso")
+    
+    # Paso 1: ingreso del peso
+    nuevo_peso = st.number_input("Introduce tu peso en kg", min_value=30.0, max_value=200.0, step=0.1, key="input_peso")
     if st.button("Guardar peso"):
-        confirmar = st.radio(f"¿Es correcto el peso {peso:.1f} kg?", ("Sí", "No"))
-        if confirmar == "Sí":
-            guardar_peso(peso)
-        else:
-            st.info("Vuelve a introducir tu peso si te has equivocado")
+        st.session_state["peso_temporal"] = nuevo_peso
+        st.session_state["mostrar_confirmacion"] = True
 
-    # Mostrar histórico
-    df = leer_pesos()
-    if not df.empty:
-        st.subheader("Historial de peso")
-        st.dataframe(df[["created_at", "peso"]].tail(5), use_container_width=True)
-        if len(df) >= 2:
-            diff = df.iloc[-1]["peso"] - df.iloc[-2]["peso"]
-            st.write(f"📉 Diferencia con la última medición: {diff:.1f} kg")
-        ultimos_30 = df[df["created_at"] > datetime.now(timezone.utc) - timedelta(days=30)]
-        if not ultimos_30.empty:
-            media30 = ultimos_30["peso"].mean()
-            st.write(f"📊 Media últimos 30 días: {media30:.1f} kg")
+    # Paso 2: confirmación
+    if st.session_state.get("mostrar_confirmacion", False):
+        peso_confirmar = st.session_state["peso_temporal"]
+        st.info(f"¿Es correcto el peso {peso_confirmar:.1f} kg?")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Sí, es correcto"):
+                guardar_peso(peso_confirmar)
+                st.success("Peso guardado correctamente.")
+                st.session_state["mostrar_confirmacion"] = False
+        with col2:
+            if st.button("❌ No, volver"):
+                st.session_state["mostrar_confirmacion"] = False
+
 
 # ====================
 # Actualizar objetivo
