@@ -65,7 +65,7 @@ if st.button("Guardar peso"):
 # ------------------------
 df = leer_pesos()
 if not df.empty:
-    df["created_at"] = pd.to_datetime(df["created_at"])
+    df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None)
     df = df.sort_values("created_at")
     st.subheader("Historial de peso")
     st.dataframe(df.tail(5), use_container_width=True)
@@ -74,7 +74,7 @@ if not df.empty:
         diff = df.iloc[-1]["peso"] - df.iloc[-2]["peso"]
         st.write(f"📉 Diferencia con la última medición: {diff:.1f} kg")
     
-    df["created_at"] = pd.to_datetime(df["created_at"])
+    df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None)
     ultimos_30 = df[df["created_at"] > datetime.now() - timedelta(days=30)]
     
     ultimos_30 = df[df["created_at"] > datetime.now(timezone.utc) - timedelta(days=30)]
