@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client
 from datetime import datetime, timedelta
 import pandas as pd
+from datetime import datetime, timedelta, timezone
 
 # ------------------------
 # Conexión con Supabase
@@ -75,9 +76,8 @@ if not df.empty:
         st.write(f"📉 Diferencia con la última medición: {diff:.1f} kg")
     
     df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None)
-    ultimos_30 = df[df["created_at"] > datetime.now() - timedelta(days=30)]
-    
     ultimos_30 = df[df["created_at"] > datetime.now(timezone.utc) - timedelta(days=30)]
+
 
     if not ultimos_30.empty:
         media30 = ultimos_30["peso"].mean()
