@@ -1,32 +1,33 @@
 import streamlit as st
+from supabase import create_client
+from datetime import datetime, timedelta
 import pandas as pd
-from datetime import datetime
-import os
 
+# ------------------------
+# Conexión con Supabase
+# ------------------------
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase = create_client(url, key)
 
+# ------------------------
+# Guardar nuevo peso
+# ------------------------
+def guardar_peso(peso):
+    now = datetime.now().isoformat()
+    data = {"fecha_hora": now, "peso": peso}
+    supabase.table("peso").insert(data).execute()
 
-# ---------- Configuración ----------
-DATA_FILE = "peso.csv"
-st.write("Archivo guardado en:", os.path.abspath(DATA_FILE))
-# ---------- Cargar datos ----------
-def cargar_datos():
-    if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE, parse_dates=["fecha_hora"])
-    else:
-        return pd.DataFrame(columns=["fecha_hora", "peso"])
+# ------------------------
+# Leer datos de la tabla
+# ------------------------
+def leer_pesos():
+    response = supabase.table("peso").select("*").order("fecha_hora", desc=True).limit(100).execute()
+    return pd.DataFrame(response.data)
 
-# ---------- Guardar nuevo registro ----------
-def guardar_dato(peso):
-    df = cargar_datos()
-    nueva_fila = pd.DataFrame({
-        "fecha_hora": [datetime.now()],
-        "peso": [peso]
-    })
-    df = pd.concat([df, nueva_fila], ignore_index=True)
-    df.to_csv(DATA_FILE, index=False)
-    return df
-
-# ---------- Pantalla de bienvenida ----------
+# ------------------------
+# Pantalla de bienvenida
+# ------------------------
 if "entrado" not in st.session_state:
     st.session_state.entrado = False
 
@@ -37,30 +38,34 @@ if not st.session_state.entrado:
         st.session_state.entrado = True
     st.stop()
 
-# ---------- Interfaz principal ----------
+# ------------------------
+# Interfaz principal
+# ------------------------
 st.title("Registro de peso")
 
 peso = st.number_input("Introduce tu peso (kg)", min_value=20.0, max_value=200.0, step=0.1)
 
 if st.button("Guardar peso"):
-    df = guardar_dato(peso)
-    st.success("Peso guardado correctamente.")
-else:
-    df = cargar_datos()
+    guardar_peso(peso)
+    st.success("Peso guardado en Supabase.")
 
-# ---------- Mostrar últimos datos ----------
+# ------------------------
+# Mostrar histórico
+# ------------------------
+df = leer_pesos()
 if not df.empty:
+    df["fecha_hora"] = pd.to_datetime(df["fecha_hora"])
+    df = df.sort_values("fecha_hora")
     st.subheader("Historial de peso")
-    st.dataframe(df.tail(5))
+    st.dataframe(df.tail(5), use_container_width=True)
 
-    # Diferencia con la última medición
     if len(df) >= 2:
-        diff_ult = df.iloc[-1]["peso"] - df.iloc[-2]["peso"]
-        st.write(f"📉 Diferencia con la última medición: {diff_ult:.1f} kg")
+        diff = df.iloc[-1]["peso"] - df.iloc[-2]["peso"]
+        st.write(f"📉 Diferencia con la última medición: {diff:.1f} kg")
 
-    # Media últimos 30 días
-    ultimos_30 = df[df["fecha_hora"] > (datetime.now() - pd.Timedelta(days=30))]
+    ultimos_30 = df[df["fecha_hora"] > datetime.now() - timedelta(days=30)]
     if not ultimos_30.empty:
-        media_30 = ultimos_30["peso"].mean()
-        diff_media = df.iloc[-1]["peso"] - media_30
-        st.write(f"📊 Diferencia con la media de los últimos 30 días: {diff_media:.1f} kg")
+        media30 = ultimos_30["peso"].mean()
+        delta = df.iloc[-1]["peso"] - media30
+        st.write(f"📊 Diferencia con la media de los últimos 30 días: {delta:.1f} kg")
+
