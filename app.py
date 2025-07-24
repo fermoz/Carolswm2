@@ -14,10 +14,14 @@ supabase = create_client(url, key)
 # Guardar nuevo peso
 # ------------------------
 def guardar_peso(peso):
-    data = {"peso": float(peso)}  # No pongas "id", ni "created_at"
+    data = {"peso": float(peso)}
     response = supabase.table("peso").insert(data).execute()
+
+    # Debug completo:
+    st.write("DEBUG RESPONSE:", response)
     if response.error:
-        st.error(f"❌ Error al guardar: {response.error}")
+        st.error(f"❌ Error Supabase: {response.error}")
+
 
 
 # ------------------------
