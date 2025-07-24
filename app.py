@@ -1,8 +1,7 @@
 import streamlit as st
 from supabase import create_client
-from datetime import datetime, timedelta
-import pandas as pd
 from datetime import datetime, timedelta, timezone
+import pandas as pd
 
 # ------------------------
 # Conexión con Supabase
@@ -12,30 +11,27 @@ key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 # ------------------------
-# Guardar nuevo peso
+# Función para guardar peso
 # ------------------------
 def guardar_peso(peso):
-    data = {"peso": float(peso)}
     try:
-        response = supabase.table("peso").insert(data).execute()
-        st.success("✅ Peso guardado en Supabase.")
+        data = {"peso": float(peso)}
+        supabase.table("peso").insert(data).execute()
+        st.success("✅ Peso guardado correctamente.")
     except Exception as e:
         st.error(f"❌ Error al guardar: {e}")
 
-
-
 # ------------------------
-# Leer datos de la tabla
+# Función para leer los datos
 # ------------------------
 def leer_pesos():
     response = supabase.table("peso").select("*").order("created_at", desc=True).limit(100).execute()
     df = pd.DataFrame(response.data)
 
     if not df.empty and "created_at" in df.columns:
-        df["created_at"] = pd.to_datetime(df["created_at"])
+        df["created_at"] = pd.to_datetime(df["created_at"], utc=True)
 
     return df
-
 
 # ------------------------
 # Pantalla de bienvenida
@@ -51,7 +47,7 @@ if not st.session_state.entrado:
     st.stop()
 
 # ------------------------
-# Interfaz principal
+# Registro de nuevo peso
 # ------------------------
 st.title("Registro de peso")
 
@@ -59,26 +55,23 @@ peso = st.number_input("Introduce tu peso (kg)", min_value=20.0, max_value=200.0
 
 if st.button("Guardar peso"):
     guardar_peso(peso)
-    st.success("Peso guardado en Supabase.")
 
 # ------------------------
 # Mostrar histórico
 # ------------------------
 df = leer_pesos()
+
 if not df.empty:
-    df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None)
     df = df.sort_values("created_at")
+
     st.subheader("Historial de peso")
-    st.dataframe(df.tail(5), use_container_width=True)
+    st.dataframe(df[["created_at", "peso"]].tail(5), use_container_width=True)
 
     if len(df) >= 2:
         diff = df.iloc[-1]["peso"] - df.iloc[-2]["peso"]
         st.write(f"📉 Diferencia con la última medición: {diff:.1f} kg")
-    
-    df["created_at"] = pd.to_datetime(df["created_at"]).dt.tz_localize(None)
+
     ultimos_30 = df[df["created_at"] > datetime.now(timezone.utc) - timedelta(days=30)]
-
-
     if not ultimos_30.empty:
         media30 = ultimos_30["peso"].mean()
         delta = df.iloc[-1]["peso"] - media30
