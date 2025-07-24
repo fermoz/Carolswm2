@@ -9,7 +9,7 @@ key = st.secrets["SUPABASE_KEY"]
 supabase = create_client(url, key)
 
 st.set_page_config(page_title="Registro de Peso", layout="centered")
-st.title("📈 Seguimiento de Peso Corporal")
+st.title("📈 Carols curve")
 
 # Funciones auxiliares
 def guardar_peso(peso):
