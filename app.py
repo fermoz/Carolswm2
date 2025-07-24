@@ -51,12 +51,35 @@ menu = st.sidebar.radio("Menú", ["1. Registrar peso", "2. Borrar registros"])
 
 if menu == "1. Registrar peso":
     st.subheader("Registrar nuevo peso")
-    peso = st.number_input("Introduce tu peso (kg)", min_value=20.0, max_value=200.0, step=0.1)
 
-    if st.button("Guardar peso"):
-        guardar_peso(peso)
+    # Paso 1: ingresar peso
+    if "peso_temporal" not in st.session_state:
+        st.session_state.peso_temporal = None
 
-    # Mostrar historial
+    if st.session_state.peso_temporal is None:
+        peso = st.number_input("Introduce tu peso (kg)", min_value=20.0, max_value=200.0, step=0.1, key="peso_input")
+
+        if st.button("Guardar peso"):
+            st.session_state.peso_temporal = peso
+            st.rerun()
+
+    # Paso 2: confirmar
+    else:
+        peso = st.session_state.peso_temporal
+        st.info(f"¿Es correcto el peso **{peso:.1f} kg**?")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Confirmar"):
+                guardar_peso(peso)
+                st.session_state.peso_temporal = None
+                st.rerun()
+        with col2:
+            if st.button("❌ Corregir"):
+                st.session_state.peso_temporal = None
+                st.rerun()
+
+    # Mostrar historial (siempre)
     df = leer_pesos()
     if not df.empty:
         df = df.sort_values("created_at")
@@ -72,6 +95,7 @@ if menu == "1. Registrar peso":
             media30 = ultimos_30["peso"].mean()
             delta = df.iloc[-1]["peso"] - media30
             st.write(f"📊 Diferencia con la media de los últimos 30 días: {delta:.1f} kg")
+
 
 # ------------------------
 # Borrar registros
