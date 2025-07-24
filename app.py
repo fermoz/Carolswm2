@@ -28,8 +28,13 @@ def guardar_peso(peso):
 # ------------------------
 def leer_pesos():
     response = supabase.table("peso").select("*").order("created_at", desc=True).limit(100).execute()
-    df["created_at"] = pd.to_datetime(df["created_at"])
-    return pd.DataFrame(response.data)
+    df = pd.DataFrame(response.data)
+
+    if not df.empty and "created_at" in df.columns:
+        df["created_at"] = pd.to_datetime(df["created_at"])
+
+    return df
+
 
 # ------------------------
 # Pantalla de bienvenida
