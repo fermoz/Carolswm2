@@ -76,8 +76,7 @@ if not df.empty:
     
     df["created_at"] = pd.to_datetime(df["created_at"])
     ultimos_30 = df[df["created_at"] > datetime.now() - timedelta(days=30)]
-    from datetime import timezone
-
+    
     ultimos_30 = df[df["created_at"] > datetime.now(timezone.utc) - timedelta(days=30)]
 
     if not ultimos_30.empty:
